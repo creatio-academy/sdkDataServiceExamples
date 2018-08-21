@@ -4,10 +4,10 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Web.Script.Serialization;
+using Terrasoft.Common;
 using Terrasoft.Core.Entities;
 using Terrasoft.Nui.ServiceModel.DataContract;
-
-namespace InsertExample
+namespace SelectExample
 {
     // The helper class. Used to convert authentication response JSON string.
     class AuthResponseStatus
@@ -30,8 +30,8 @@ namespace InsertExample
         // Query string to the Login method of the AuthService.svc service.
         private const string authServiceUri = baseUri + @"/ServiceModel/AuthService.svc/Login";
 
-        // InsertQuery query path string.
-        private const string insertQueryUri = baseUri + @"/0/DataService/json/reply/InsertQuery";
+        // SelectQuery query path string.
+        private const string selectQueryUri = baseUri + @"/0/DataService/json/SyncReply/SelectQuery";
 
         /// <summary>
         /// Performs user authentication request.
@@ -105,71 +105,80 @@ namespace InsertExample
                 return;
             }
 
-            // InsertQuery class instance.
-            var insertQuery = new InsertQuery()
+            // Instance of the SelectQuery class.
+            var selectQuery = new SelectQuery()
             {
                 // Root schema name.
                 RootSchemaName = "Contact",
-                // Added column values collection.
-                ColumnValues = new ColumnValues()
+                /// Added column values collection.
+                Columns = new SelectQueryColumns()
             };
 
             // Expression class instance of the entity schema query.
             // Used to configure the [Full name] column.
-            var columnExpressionName = new ColumnExpression
+            var columnExpressionName = new ColumnExpression()
             {
-                // Entity schema query expression type is a parameter.
-                ExpressionType = EntitySchemaQueryExpressionType.Parameter,
-                // Query expression parameter.
-                Parameter = new Parameter
+                // Entity schema query expression type is a schema column.
+                ExpressionType = EntitySchemaQueryExpressionType.SchemaColumn,
+                // Path to column.
+                ColumnPath = "Name"
+            };
+
+            // Configuring the [Name] column. 
+            var selectQueryColumnName = new SelectQueryColumn()
+            {
+                //Title.
+                Caption = "Name",
+                // Sorting order — ascending.
+                OrderDirection = OrderDirection.Ascending,
+                // Sorting order position.
+                OrderPosition = 0,
+                // Expression that specifies column type.
+                Expression = columnExpressionName
+            };
+
+            // Expression that specifies [Number of activities] column type.
+            var columnExpressionActivitiesCount = new ColumnExpression()
+            {
+                // Expression type is subquery.
+                ExpressionType = EntitySchemaQueryExpressionType.SubQuery,
+                // Path to column in relation to root schema.
+                ColumnPath = "[Activity:Contact].Id",
+                // Function type is aggregation.
+                FunctionType = FunctionType.Aggregation,
+                // Aggregation type is quantity.
+                AggregationType = AggregationType.Count
+            };
+
+            // Configuring the [Number of activities] column.
+            var selectQueryColumnActivitiesCount = new SelectQueryColumn()
+            {
+                //Title.
+                Caption = "Activities count",
+                // Ascending sorting direction.
+                OrderDirection = OrderDirection.Ascending,
+                // Sorting order position.
+                OrderPosition = 1,
+                // Expression, which specifies column type.
+                Expression = columnExpressionActivitiesCount
+            };
+
+            // Adding columns to query.
+            selectQuery.Columns.Items = new Dictionary<string, SelectQueryColumn>()
+            {
                 {
-                    // Parameter value.
-                    Value = "John Best",
-                    // Parameter data type is a string.
-                    DataValueType = DataValueType.Text
+                    "Name",
+                    selectQueryColumnName
+                },
+                {
+                    "ActivitiesCount",
+                    selectQueryColumnActivitiesCount
                 }
             };
 
-            // Expression class instance of the entity schema query.
-            // Used to configure the [Job title] column.
-            var columnExpressionPhone = new ColumnExpression
-            {
-                ExpressionType = EntitySchemaQueryExpressionType.Parameter,
-                Parameter = new Parameter
-                {
-                    Value = "+12 345 678 00 00",
-                    DataValueType = DataValueType.Text
-                }
-            };
 
-            // Expression class instance of the entity schema query.
-            // Used to configure the [Job title] column.
-            var columnExpressionJob = new ColumnExpression
-            {
-                ExpressionType = EntitySchemaQueryExpressionType.Parameter,
-                Parameter = new Parameter
-                {
-                    // The "Developer" record GUID of the [Job title] system lookup.
-                    // Change to the record GUID in bpm'online.
-                    Value = "11D68189-CED6-DF11-9B2A-001D60E938C6",
-                    // Parameter data type is Guid (unique identifier).
-                    DataValueType = DataValueType.Guid
-                }
-            };
-
-            // Query column collection initialization.
-            insertQuery.ColumnValues.Items = new Dictionary<string, ColumnExpression>();
-            // Adding query expressions to the added column collection.
-            // The [Full name] column.
-            insertQuery.ColumnValues.Items.Add("Name", columnExpressionName);
-            // The [Business phone] column.
-            insertQuery.ColumnValues.Items.Add("Phone", columnExpressionPhone);
-            // The [Job title] column.
-            insertQuery.ColumnValues.Items.Add("Job", columnExpressionJob);
-
-            // InsertQuery instance serialization to the JSON string.
-            var json = new JavaScriptSerializer().Serialize(insertQuery);
-
+            // Serializing the SelectQuery instance to a JSON string.
+            var json = new JavaScriptSerializer().Serialize(selectQuery);
             // You can log the JSON string to the console.
             Console.WriteLine(json);
             Console.WriteLine();
@@ -177,28 +186,29 @@ namespace InsertExample
             // Converting JSON string to a byte array.
             byte[] jsonArray = Encoding.UTF8.GetBytes(json);
             // Creating HTTP request instance.
-            var insertRequest = HttpWebRequest.Create(insertQueryUri) as HttpWebRequest;
+            var selectRequest = HttpWebRequest.Create(selectQueryUri) as HttpWebRequest;
             // Defining HTTP method of the request.
-            insertRequest.Method = "POST";
+            selectRequest.Method = "POST";
             // Defining request content type.
-            insertRequest.ContentType = "application/json";
+            selectRequest.ContentType = "application/json";
             // Adding the previously received authentication cookies.
-            insertRequest.CookieContainer = AuthCookie;
+            selectRequest.CookieContainer = AuthCookie;
             // Setting the request content length.
-            insertRequest.ContentLength = jsonArray.Length;
+            selectRequest.ContentLength = jsonArray.Length;
 
             // Putting BPMCSRF token to the request header.
             CookieCollection cookieCollection = AuthCookie.GetCookies(new Uri(authServiceUri));
             string csrfToken = cookieCollection["BPMCSRF"].Value;
-            insertRequest.Headers.Add("BPMCSRF", csrfToken);
-            
+            selectRequest.Headers.Add("BPMCSRF", csrfToken);
+
             // Adding a JSON string to the request body.
-            using (var requestStream = insertRequest.GetRequestStream())
+            using (var requestStream = selectRequest.GetRequestStream())
             {
                 requestStream.Write(jsonArray, 0, jsonArray.Length);
             }
+
             // Executing the HTTP request and receiving response from the server.
-            using (var response = (HttpWebResponse)insertRequest.GetResponse())
+            using (var response = (HttpWebResponse)selectRequest.GetResponse())
             {
                 // Displaying respose in console.
                 using (StreamReader reader = new StreamReader(response.GetResponseStream()))
@@ -206,7 +216,8 @@ namespace InsertExample
                     Console.WriteLine(reader.ReadToEnd());
                     // Response is just a JSON string.
                     // The main prooperties of such JSON are:
-                    // ID - contains unique identifier of the inserted record.
+                    // "rowConfig" - contains the structure of response records.
+                    // "rows" - contains the collection of response records.
                     // success - indicates whether the record was added successfully.
                     // You can convert this JSON to a plain old CLR object in same way as it is done in TryLogin() method above.
                     // But you have to define corresponding class before doing this.
@@ -214,7 +225,8 @@ namespace InsertExample
             }
 
             // Pause.
-            Console.ReadLine();
+            Console.ReadKey();
+
         }
     }
 }
