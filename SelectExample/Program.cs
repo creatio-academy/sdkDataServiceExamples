@@ -110,7 +110,7 @@ namespace SelectExample
             {
                 // Root schema name.
                 RootSchemaName = "Contact",
-                /// Added column values collection.
+                // Adding column values collection.
                 Columns = new SelectQueryColumns()
             };
 
@@ -218,7 +218,7 @@ namespace SelectExample
                     // The main prooperties of such JSON are:
                     // "rowConfig" - contains the structure of response records.
                     // "rows" - contains the collection of response records.
-                    // success - indicates whether the record was added successfully.
+                    // "success" - indicates whether the record was added successfully.
                     // You can convert this JSON to a plain old CLR object in same way as it is done in TryLogin() method above.
                     // But you have to define corresponding class before doing this.
                 }
