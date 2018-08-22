@@ -108,7 +108,7 @@ namespace FiltersExample
             // Instance of the SelectQuery class.
             var selectQuery = new SelectQuery()
             {
-                /// Root schema name.
+                // Root schema name.
                 RootSchemaName = "Contact",
                 // Adding column values collection.
                 Columns = new SelectQueryColumns()
