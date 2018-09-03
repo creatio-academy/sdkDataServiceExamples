@@ -4,10 +4,10 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Web.Script.Serialization;
-using Terrasoft.Common;
 using Terrasoft.Core.Entities;
 using Terrasoft.Nui.ServiceModel.DataContract;
-namespace DeleteExample
+
+namespace BatchExample
 {
     // The helper class. Used to convert authentication response JSON string.
     class AuthResponseStatus
@@ -30,8 +30,8 @@ namespace DeleteExample
         // Query string to the Login method of the AuthService.svc service.
         private const string authServiceUri = baseUri + @"/ServiceModel/AuthService.svc/Login";
 
-        // SelectQuery query path string.
-        private const string queryUri = baseUri + @"/0/DataService/json/SyncReply/DeleteQuery";
+        // InsertQuery query path string.
+        private const string queryUri = baseUri + @"/0/DataService/json/reply/BatchQuery";
 
         /// <summary>
         /// Performs user authentication request.
@@ -78,6 +78,7 @@ namespace DeleteExample
                     string responseText = reader.ReadToEnd();
                     status = new JavaScriptSerializer().Deserialize<AuthResponseStatus>(responseText);
                 }
+
             }
 
             // Checking authentication status.
@@ -104,49 +105,74 @@ namespace DeleteExample
                 return;
             }
 
-            // Instance of the DeleteQuery class.
-            var deleteQuery = new DeleteQuery()
+            // InsertQuery class instance. See InsertExample project for more information.
+            var insertQuery = new InsertQuery()
             {
-                // Root schema name.
                 RootSchemaName = "Contact",
-                // Query filters.
+                ColumnValues = new ColumnValues()
+                {
+                    Items = new Dictionary<string, ColumnExpression>()
+                    {
+                        {
+                            "Name",
+                            new ColumnExpression()
+                            {
+                                ExpressionType = EntitySchemaQueryExpressionType.Parameter,
+                                Parameter = new Parameter
+                                {
+                                    Value = "John Best",
+                                    DataValueType = DataValueType.Text
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // InsertQuery class instance. See UpdateExample project for more information.
+            var updateQuery = new UpdateQuery()
+            {
+                RootSchemaName = "Contact",
+                ColumnValues = new ColumnValues()
+                {
+                    Items = new Dictionary<string, ColumnExpression>()
+                    {
+                        {
+                            "Phone",
+                            new ColumnExpression()
+                            {
+                                ExpressionType = EntitySchemaQueryExpressionType.Parameter,
+                                Parameter = new Parameter()
+                                {
+                                    Value = "0123456789",
+                                    DataValueType = DataValueType.Text
+                                }
+                            }
+                        }
+                    }
+                },
                 Filters = new Filters()
                 {
-                    // Filter type is group.
                     FilterType = Terrasoft.Nui.ServiceModel.DataContract.FilterType.FilterGroup,
-                    // Filters collection.
                     Items = new Dictionary<string, Filter>()
                     {
-                        // Filtering by name.
                         {
-                            // Key.
                             "FilterByName",
-                            // Value.
                             new Filter
                             {
-                                // Filter type is comparison filter.
                                 FilterType = Terrasoft.Nui.ServiceModel.DataContract.FilterType.CompareFilter,
-                                // Comparison type it an "equal" expression.
                                 ComparisonType = FilterComparisonType.Equal,
-                                // Expression to be ckecked.
                                 LeftExpression = new BaseExpression()
                                 {
-                                    // Type of expression is schema column.
                                     ExpressionType = EntitySchemaQueryExpressionType.SchemaColumn,
-                                    // Path to the column.
                                     ColumnPath = "Name"
                                 },
-                                // Filtering expression.
                                 RightExpression = new BaseExpression()
                                 {
-                                    // Type of expression is parameter.
                                     ExpressionType = EntitySchemaQueryExpressionType.Parameter,
-                                    // Query expression parameter.
                                     Parameter = new Parameter()
                                     {
-                                        // Parameter data type is string.
                                         DataValueType = DataValueType.Text,
-                                        // Parameter value.
                                         Value = "John Best"
                                     }
                                 }
@@ -156,38 +182,48 @@ namespace DeleteExample
                 }
             };
 
-            // Serializing the SelectQuery instance to a JSON string.
-            var json = new JavaScriptSerializer().Serialize(deleteQuery);
-            // You can log the JSON string to the console.
-            Console.WriteLine(json);
-            Console.WriteLine();
+            // InsertQuery instance serialization to the JSON string.
+            var jsonInsert = new JavaScriptSerializer().Serialize(insertQuery);
+            // Adding query type to the JSON string.
+            jsonInsert = jsonInsert.Insert(1, @"""__type"": ""Terrasoft.Nui.ServiceModel.DataContract.InsertQuery"",");
+            
+            var jsonUpdate = new JavaScriptSerializer().Serialize(updateQuery);
+            jsonUpdate = jsonUpdate.Insert(1, @"""__type"": ""Terrasoft.Nui.ServiceModel.DataContract.UpdateQuery"",");
+            // Формирование пакетного запроса.
+            var json = @"{""items"": [" + jsonInsert + "," + jsonUpdate + "]}";
 
+            Console.WriteLine(jsonInsert);
+            Console.WriteLine();
+            Console.WriteLine(jsonUpdate);
+            Console.WriteLine();
+            Console.WriteLine(json);
+
+            
             // Converting JSON string to a byte array.
             byte[] jsonArray = Encoding.UTF8.GetBytes(json);
             // Creating HTTP request instance.
-            var request = HttpWebRequest.Create(queryUri) as HttpWebRequest;
+            var insertRequest = HttpWebRequest.Create(queryUri) as HttpWebRequest;
             // Defining HTTP method of the request.
-            request.Method = "POST";
+            insertRequest.Method = "POST";
             // Defining request content type.
-            request.ContentType = "application/json";
+            insertRequest.ContentType = "application/json";
             // Adding the previously received authentication cookies.
-            request.CookieContainer = AuthCookie;
+            insertRequest.CookieContainer = AuthCookie;
             // Setting the request content length.
-            request.ContentLength = jsonArray.Length;
+            insertRequest.ContentLength = jsonArray.Length;
 
             // Putting BPMCSRF token to the request header.
             CookieCollection cookieCollection = AuthCookie.GetCookies(new Uri(authServiceUri));
             string csrfToken = cookieCollection["BPMCSRF"].Value;
-            request.Headers.Add("BPMCSRF", csrfToken);
+            insertRequest.Headers.Add("BPMCSRF", csrfToken);
 
             // Adding a JSON string to the request body.
-            using (var requestStream = request.GetRequestStream())
+            using (var requestStream = insertRequest.GetRequestStream())
             {
                 requestStream.Write(jsonArray, 0, jsonArray.Length);
             }
-
             // Executing the HTTP request and receiving response from the server.
-            using (var response = (HttpWebResponse)request.GetResponse())
+            using (var response = (HttpWebResponse)insertRequest.GetResponse())
             {
                 // Displaying respose in console.
                 using (StreamReader reader = new StreamReader(response.GetResponseStream()))
@@ -195,13 +231,15 @@ namespace DeleteExample
                     Console.WriteLine(reader.ReadToEnd());
                     // Response is just a JSON string.
                     // The main prooperties of such JSON are:
-                    // "success" - indicates whether the record was updated successfully.
+                    // ID - contains unique identifier of the inserted record.
+                    // success - indicates whether the record was added successfully.
+                    // You can convert this JSON to a plain old CLR object in same way as it is done in TryLogin() method above.
+                    // But you have to define corresponding class before doing this.
                 }
             }
 
             // Pause.
-            Console.ReadKey();
-
+            Console.ReadLine();
         }
     }
 }
