@@ -7,7 +7,7 @@ using System.Web.Script.Serialization;
 using Terrasoft.Common;
 using Terrasoft.Core.Entities;
 using Terrasoft.Nui.ServiceModel.DataContract;
-namespace UpdateExample
+namespace DeleteExample
 {
     // The helper class. Used to convert authentication response JSON string.
     class AuthResponseStatus
@@ -31,7 +31,7 @@ namespace UpdateExample
         private const string authServiceUri = baseUri + @"/ServiceModel/AuthService.svc/Login";
 
         // SelectQuery query path string.
-        private const string updateQueryUri = baseUri + @"/0/DataService/json/SyncReply/UpdateQuery";
+        private const string updateQueryUri = baseUri + @"/0/DataService/json/SyncReply/DeleteQuery";
 
         /// <summary>
         /// Performs user authentication request.
@@ -78,7 +78,6 @@ namespace UpdateExample
                     string responseText = reader.ReadToEnd();
                     status = new JavaScriptSerializer().Deserialize<AuthResponseStatus>(responseText);
                 }
-
             }
 
             // Checking authentication status.
@@ -105,38 +104,11 @@ namespace UpdateExample
                 return;
             }
 
-            // Instance of the SelectQuery class.
-            var updateQuery = new UpdateQuery()
+            // Instance of the DeleteQuery class.
+            var deleteQuery = new DeleteQuery()
             {
                 // Root schema name.
                 RootSchemaName = "Contact",
-                // New column values.
-                ColumnValues = new ColumnValues()
-                {
-                    // Columns key-value pairs collection.
-                    Items = new Dictionary<string, ColumnExpression>()
-                    {
-                        //Column [Email].
-                        {
-                            // Key.
-                            "Email",
-                            // Value. Configuring the [Email] column.
-                            new ColumnExpression()
-                            {
-                                // Type of expression of object schema query is parameter.
-                                ExpressionType = EntitySchemaQueryExpressionType.Parameter,
-                                // Query expression parameter.
-                                Parameter = new Parameter()
-                                {
-                                    // Parameter value.
-                                    Value = "j.best@bpmonline.com",
-                                    // Parameter data type is string.
-                                    DataValueType = DataValueType.Text
-                                }
-                            }
-                        }
-                    }
-                },
                 // Query filters.
                 Filters = new Filters()
                 {
@@ -159,17 +131,20 @@ namespace UpdateExample
                                 // Expression to be ckecked.
                                 LeftExpression = new BaseExpression()
                                 {
+                                    // Type of expression is schema column.
                                     ExpressionType = EntitySchemaQueryExpressionType.SchemaColumn,
+                                    // Path to the column.
                                     ColumnPath = "Name"
                                 },
-
                                 // Filtering expression.
                                 RightExpression = new BaseExpression()
                                 {
+                                    // Type of expression is parameter.
                                     ExpressionType = EntitySchemaQueryExpressionType.Parameter,
+                                    // Query expression parameter.
                                     Parameter = new Parameter()
                                     {
-                                        // Parameter data type is text.
+                                        // Parameter data type is string.
                                         DataValueType = DataValueType.Text,
                                         // Parameter value.
                                         Value = "John Best"
@@ -182,7 +157,7 @@ namespace UpdateExample
             };
 
             // Serializing the SelectQuery instance to a JSON string.
-            var json = new JavaScriptSerializer().Serialize(updateQuery);
+            var json = new JavaScriptSerializer().Serialize(deleteQuery);
             // You can log the JSON string to the console.
             Console.WriteLine(json);
             Console.WriteLine();

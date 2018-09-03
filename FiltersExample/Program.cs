@@ -251,6 +251,7 @@ namespace FiltersExample
                     }
                 }
             };
+
             // Adding filters to the query.
             selectQuery.Filters = selectFilters;
             // Serializing the SelectQuery instance to a JSON string.
